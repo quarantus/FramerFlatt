@@ -1,65 +1,60 @@
 import { parseHTML } from 'linkedom';
 import * as fflate from 'fflate';
 
-export async function onRequestPost({ request }) {
-  try {
-    const form = await request.formData();
-    const file = form.get('file');
-    const renames = JSON.parse(form.get('renames') || '{}');
-    const splitMode = form.get('splitMode') || 'zip';
+export const config = { api: { bodyParser: false }, maxDuration: 10 };
 
-    if (!file) return new Response('No file received', { status: 400 });
+export default async function handler(req, res) {
+  if (req.method!== 'POST') return res.status(405).end();
+  const buffers = [];
+  for await (const chunk of req) buffers.push(chunk);
+  const body = Buffer.concat(buffers).toString('utf8');
+  const html = body.split('name="file"')[1].split('\r\n\r\n')[1].split('\r\n----')[0];
+  const renames = JSON.parse(body.split('name="renames"')[1]?.split('\r\n\r\n')[1]?.split('\r\n----')[0] || '{}');
+  const splitMode = body.split('name="splitMode"')[1]?.split('\r\n\r\n')[1]?.split('\r\n----')[0] || 'zip';
 
-    const html = await file.text();
-    const { document } = parseHTML(html);
+  const { document } = parseHTML(html);
 
-    function flatten(el) {
-      const children = Array.from(el.children);
-      for (const c of children) flatten(c);
-      if (el.tagName === 'DIV' && el.children.length === 1 &&!el.id &&!el.getAttribute('data-framer-name')) {
-        const child = el.children[0];
-        if (el.getAttribute('style')) {
-          child.setAttribute('style', (child.getAttribute('style') || '') + ';' + el.getAttribute('style'));
-        }
-        el.replaceWith(child);
-      }
-    }
-
-    Array.from(document.body.children).forEach(flatten);
-
-    Object.entries(renames).forEach(([oldKey, newName]) => {
-      document.querySelectorAll(`[data-framer-name="${oldKey}"]`).forEach(el => {
-        el.classList.add(newName.toLowerCase().replace(/\s+/g, '-'));
-      });
-    });
-
-    let result = '<!DOCTYPE html>' + document.documentElement.outerHTML;
-    result = result.replace(/>\s+</g, '><').replace(/<!--.*?-->/g, '');
-
-    const newSize = new TextEncoder().encode(result).length;
-    const reduction = ((1 - newSize / file.size) * 100).toFixed(1) + '%';
-
-    if (splitMode === 'inline') {
-      return new Response(result, {
-        headers: {
-          'Content-Type': 'text/html',
-          'Content-Disposition': 'attachment; filename="index.html"',
-          'X-Size-Reduction': reduction
-        }
-      });
-    }
-
-    const zipped = fflate.zipSync({ 'index.html': fflate.strToU8(result) });
-
-    return new Response(zipped, {
-      headers: {
-        'Content-Type': 'application/zip',
-        'Content-Disposition': 'attachment; filename="site.zip"',
-        'X-Size-Reduction': reduction
-      }
-    });
-
-  } catch (err) {
-    return new Response(`FATAL: ${err.message}\nStack: ${err.stack}`, { status: 500 });
+  function isFramerWrapper(el) {
+    if (el.tagName!== 'DIV') return false;
+    const hasId = el.hasAttribute('id');
+    const hasSemantic = ['role','aria-label','data-id','href','src','data-framer-name'].some(a => el.hasAttribute(a));
+    const hasText = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
+    return!hasId &&!hasSemantic &&!hasText && el.children.length <= 1;
   }
+
+  function flatten(el) {
+    [...el.children].forEach(flatten);
+    if (isFramerWrapper(el) && el.children.length === 1) {
+      const child = el.children[0];
+      if (el.getAttribute('style')) child.setAttribute('style', (child.getAttribute('style') || '') + ';' + el.getAttribute('style'));
+      el.replaceWith(child);
+    }
+  }
+
+  [...document.body.children].forEach(flatten);
+
+  Object.entries(renames).forEach(([oldKey, newName]) => {
+    document.querySelectorAll(`[data-framer-name="${oldKey}"]`).forEach(el => {
+      el.classList.add(newName.toLowerCase().replace(/\s+/g, '-'));
+    });
+  });
+
+  let result = '<!DOCTYPE html>' + document.documentElement.outerHTML;
+  result = result.replace(/>\s+</g, '><').replace(/<!--[\s\S]*?-->/g, '');
+
+  const newSize = Buffer.byteLength(result, 'utf8');
+  const reduction = ((1 - newSize / html.length) * 100).toFixed(1) + '%';
+
+  if (splitMode === 'inline') {
+    res.setHeader('Content-Type', 'text/html');
+    res.setHeader('Content-Disposition', 'attachment; filename="index.html"');
+    res.setHeader('X-Size-Reduction', reduction);
+    return res.send(result);
+  }
+
+  const zipped = fflate.zipSync({ 'index.html': fflate.strToU8(result) });
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', 'attachment; filename="site.zip"');
+  res.setHeader('X-Size-Reduction', reduction);
+  res.send(Buffer.from(zipped));
 }
