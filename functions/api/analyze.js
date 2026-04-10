@@ -1,28 +1,24 @@
 import { parseHTML } from 'linkedom';
 
-export async function onRequestPut({ request }) {
-  try {
-    const form = await request.formData();
-    const file = form.get('file');
-    if (!file) return new Response('No file', { status: 400 });
+export const config = { api: { bodyParser: false } };
 
-    const html = await file.text();
-    const { document } = parseHTML(html);
+export default async function handler(req, res) {
+  if (req.method!== 'PUT') return res.status(405).end();
+  const buffers = [];
+  for await (const chunk of req) buffers.push(chunk);
+  const html = Buffer.concat(buffers).toString('utf8').split('name="file"')[1].split('\r\n\r\n')[1].split('\r\n----')[0];
 
-    const blocks = [];
-    document.querySelectorAll('[data-framer-name]').forEach(el => {
-      const name = el.getAttribute('data-framer-name');
-      if (name &&!blocks.find(b => b.oldKey === name)) {
-        blocks.push({
-          oldKey: name,
-          suggestedName: name.replace(/([A-Z])/g, ' $1').trim(),
-          preview: el.textContent.slice(0, 30).trim() || '<empty>'
-        });
-      }
-    });
-
-    return Response.json({ blocks });
-  } catch (e) {
-    return new Response(`Analyze failed: ${e.message}`, { status: 500 });
-  }
+  const { document } = parseHTML(html);
+  const blocks = [];
+  document.querySelectorAll('[data-framer-name]').forEach(el => {
+    const name = el.getAttribute('data-framer-name');
+    if (name &&!blocks.find(b => b.oldKey === name)) {
+      blocks.push({
+        oldKey: name,
+        suggestedName: name.replace(/([A-Z])/g, ' $1').trim(),
+        preview: el.textContent.slice(0, 30).trim() || '<empty>'
+      });
+    }
+  });
+  res.json({ blocks });
 }
