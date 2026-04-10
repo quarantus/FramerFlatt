@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Framer Flatten | Kill the div soup</title>
+  <style>
+    body{font-family:system-ui;max-width:700px;margin:10vh auto;padding:2rem;line-height:1.6}
+    input,button{font:inherit;padding:.75rem;border-radius:8px;border:1px solid #ccc}
+    button{background:#000;color:#fff;border:none;cursor:pointer}
+   .row{margin:1rem 0}code{background:#f1f1f1;padding:.2rem.4rem;border-radius:4px}
+    dialog::backdrop{background:rgba(0,0,0,.4)}dialog{border:none;border-radius:12px;padding:0;max-width:420px;width:90%}
+    dialog[open]{animation:pop.2s ease-out}@keyframes pop{from{transform:scale(.95);opacity:0}}
+  </style>
+</head>
+<body>
+  <h1>Framer Flatten</h1>
+  <p>Drop your Framer export. We tear down 15-level div nesting and give you clean HTML/CSS/GSAP.</p>
+  <div class="row"><input type="file" id="file" accept=".html"></div>
+  <div id="renameStep" style="display:none">
+    <h3>2. Rename your blocks</h3>
+    <div id="renameList"></div>
+    <div class="row">
+      <label><input type="radio" name="splitMode" value="zip" checked> ZIP: HTML + CSS + GSAP</label><br>
+      <label><input type="radio" name="splitMode" value="inline"> Single HTML file</label>
+    </div>
+    <button onclick="doFlatten()">3. Flatten + Download</button>
+  </div>
+  <p id="status"></p>
+
+  <dialog id="supportModal">
+    <div style="padding:2rem">
+      <h3 style="margin:0 0.5rem">Your file is ready!</h3>
+      <p style="opacity:.7;margin:0 0 1.5rem">Flattened <span id="savedPercent">0%</span> of code. This tool is free.</p>
+      <div style="display:flex;gap:.5rem;margin-bottom:1.5rem">
+        <a href="https://buymeacoffee.com/yourname" target="_blank" style="flex:1;text-align:center;padding:.75rem;background:#FFDD00;color:#000;text-decoration:none;border-radius:8px;font-weight:600">☕ Buy me a coffee</a>
+        <a href="https://github.com/sponsors/yourname" target="_blank" style="flex:1;text-align:center;padding:.75rem;background:#24292e;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">❤️ Sponsor</a>
+      </div>
+      <p style="font-size:.9rem;opacity:.7;margin:0 0.75rem">Or help others find it:</p>
+      <div style="display:flex;gap:.5rem;margin-bottom:1.5rem">
+        <button onclick="share('twitter')" style="flex:1;padding:.5rem;border:1px solid #ccc;background:#fff;border-radius:6px;cursor:pointer">Twitter</button>
+        <button onclick="share('linkedin')" style="flex:1;padding:.5rem;border:1px solid #ccc;background:#fff;border-radius:6px;cursor:pointer">LinkedIn</button>
+        <button onclick="copyLink()" style="flex:1;padding:.5rem;border:1px solid #ccc;background:#fff;border-radius:6px;cursor:pointer">Copy link</button>
+      </div>
+      <button onclick="downloadFile()" style="width:100%;padding:.75rem;background:#000;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer">Download anyway</button>
+    </div>
+  </dialog>
+
+<script>
+let currentFile, pendingBlob, pendingFilename, savedRatio = '0%';
+const fileInput = document.getElementById('file');
+fileInput.onchange = async () => {
+  currentFile = fileInput.files[0]; if (!currentFile) return;
+  status.textContent = 'Analyzing...';
+  const fd = new FormData(); fd.append('file', currentFile);
+  const res = await fetch('/api/analyze', { method: 'PUT', body: fd });
+  const { blocks } = await res.json();
+  renameList.innerHTML = blocks.map(b => `<div class="row"><code>${b.oldKey}</code> → <input value="${b.suggestedName}" data-old="${b.oldKey}" style="width:200px"><small style="opacity:.6">${b.preview}</small></div>`).join('');
+  renameStep.style.display = 'block'; status.textContent = '';
+};
+async function doFlatten() {
+  const renames = {}; document.querySelectorAll('#renameList input').forEach(i => renames[i.dataset.old] = i.value);
+  const fd = new FormData(); fd.append('file', currentFile); fd.append('renames', JSON.stringify(renames)); fd.append('splitMode', document.querySelector('[name=splitMode]:checked').value);
+  status.textContent = 'Flattening...';
+  const res = await fetch('/api/flatten', { method: 'POST', body: fd });
+  pendingBlob = await res.blob(); pendingFilename = res.headers.get('content-disposition').includes('zip')? 'site.zip' : 'index.html';
+  savedRatio = res.headers.get('X-Size-Reduction') || '80%+'; document.getElementById('savedPercent').textContent = savedRatio;
+  document.getElementById('supportModal').showModal(); status.textContent = '';
+}
+function downloadFile() { const url = URL.createObjectURL(pendingBlob); Object.assign(document.createElement('a'), { href: url, download: pendingFilename }).click(); supportModal.close(); }
+function share(p) { const t = `I just flattened 15 levels of Framer divs into clean HTML with this free tool. Saved ${savedRatio}!`; const u = location.origin; const l = { twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(t)}&url=${encodeURIComponent(u)}`, linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(u)}` }; window.open(l[p], '_blank', 'width=600,height=400'); }
+function copyLink() { navigator.clipboard.writeText(location.origin); event.target.textContent = 'Copied!'; setTimeout(() => event.target.textContent = 'Copy link', 1500); }
+</script>
+</body>
+</html>
