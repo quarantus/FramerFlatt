@@ -3,10 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FramerFlatt - Clean your Framer exports</title>
+  <title>FramerFlatt - Clean your Framer exports (beta2.2)</title>
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://framerflatt.vercel.app/">
   <meta property="og:title" content="FramerFlatt">
-  <meta property="og:description" content="Flatten nested Framer divs, rename components, shrink file size">
-  <meta property="og:image" content="/og-image.jpg">
+  <meta property="og:description" content="Clean your Framer exports. Remove nesting. Rename blocks. Ship faster.">
+  <meta property="og:image" content="https://framerflatt.vercel.app/og-image.jpg">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:url" content="https://framerflatt.vercel.app/">
+  <meta name="twitter:title" content="FramerFlatt">
+  <meta name="twitter:description" content="Clean your Framer exports. Remove nesting. Rename blocks. Ship faster.">
+  <meta name="twitter:image" content="https://framerflatt.vercel.app/og-image.jpg">
+
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -14,98 +26,119 @@
       background: #fff; color: #000; min-height: 100vh;
       display: flex; align-items: center; justify-content: center; padding: 20px;
     }
-.container {
-      max-width: 600px; width: 100%; background: #fff;
-      border: 1px solid #eaeaea; border-radius: 12px; padding: 32px;
-      position: relative; box-shadow: 0 4px 24px rgba(0,0,0,0.04);
-    }
-    h1 { font-size: 28px; margin-bottom: 8px; color: #000; font-weight: 600; }
-.subtitle { color: #666; margin-bottom: 32px; font-size: 14px; }
-.stage { display: none; }
-.stage.active { display: block; }
-.upload-zone {
+  .container {
+  max-width: 600px; width: 100%; background: #fff;
+  border: 1px solid #eaeaea; border-radius: 12px; padding: 32px;
+  position: relative; box-shadow: 0 4px 24px rgba(0,0,0,0.04);
+  transition: max-width 0.3s ease;
+}
+
+/* Expand container only for stage 3 */
+.container:has(.stage3-grid.active) {
+  max-width: 900px;
+}
+
+/* Fallback for browsers without :has() support */
+.container.stage3-active {
+  max-width: 900px;
+}    h1 { font-size: 28px; margin-bottom: 8px; color: #000; font-weight: 600; }
+   .subtitle { color: #666; margin-bottom: 32px; font-size: 14px; }
+   .stage { display: none; }
+   .stage.active { display: block; }
+   .upload-zone {
       border: 2px dashed #FF6A00; border-radius: 12px; padding: 48px 24px;
       text-align: center; cursor: pointer; transition: all 0.2s; background: #FFF7F2;
     }
-.upload-zone:hover { border-color: #FF6A00; background: #FFF0E6; }
-.upload-zone.dragging { border-color: #FF6A00; background: #FFE8D9; }
+   .upload-zone:hover { border-color: #FF6A00; background: #FFF0E6; }
+   .upload-zone.dragging { border-color: #FF6A00; background: #FFE8D9; }
     input[type="file"] { display: none; }
-.btn {
+   .btn {
       background: #FF6A00; color: #fff; border: none; padding: 12px 24px;
       border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer;
-      width: 100%; margin-top: 16px; transition: background 0.2s;
+      width: 80%; margin-top: 16px; transition: background 0.2s;
     }
-.btn:hover { background: #E55F00; }
-.btn:disabled { background: #ccc; cursor: not-allowed; }
-.btn-secondary {
+   .btn:hover { background: #E55F00; }
+   .btn:disabled { background: #ccc; cursor: not-allowed; }
+   .btn-secondary {
       background: #fff; color: #666; margin-top: 8px; border: 1px solid #eaeaea;
     }
-.btn-secondary:hover { background: #fafafa; }
-.block-list { margin: 24px 0; max-height: 300px; overflow-y: auto; }
-.block-item {
+   .btn-secondary:hover { background: #fafafa; }
+   .block-list { margin: 0; max-height: 400px; overflow-y: auto; padding-right: 8px; }
+   .block-item {
       background: #fafafa; border: 1px solid #eaeaea; border-radius: 8px;
       padding: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px;
     }
-.block-item input {
+   .block-item input {
       flex: 1; background: #fff; border: 1px solid #eaeaea; color: #000;
       padding: 8px 12px; border-radius: 6px; font-size: 14px;
     }
-.block-item input:focus { outline: none; border-color: #FF6A00; }
-.block-preview { font-size: 12px; color: #888; margin-top: 4px; }
-.radio-group { margin: 24px 0; }
-.radio-item {
+   .block-item input:focus { outline: none; border-color: #FF6A00; }
+   .block-preview { font-size: 12px; color: #888; margin-top: 4px; }
+   .radio-group { margin: 24px 0; }
+   .radio-item {
       background: #fafafa; border: 1px solid #eaeaea; border-radius: 8px;
       padding: 16px; margin-bottom: 8px; cursor: pointer; display: flex; align-items: center;
     }
-.radio-item input { margin-right: 12px; accent-color: #FF6A00; }
-.radio-item.selected { border-color: #FF6A00; background: #FFF7F2; }
-.progress {
+   .radio-item input { margin-right: 12px; accent-color: #FF6A00; }
+   .radio-item.selected { border-color: #FF6A00; background: #FFF7F2; }
+   .progress {
       text-align: center; padding: 48px 0;
     }
-.spinner {
+   .spinner {
       width: 40px; height: 40px; border: 3px solid #eaeaea;
       border-top-color: #FF6A00; border-radius: 50%; animation: spin 1s linear infinite;
       margin: 0 auto 16px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-.result {
+   .result {
       text-align: center; padding: 24px; background: #fafafa;
-      border: 1px solid #eaeaea; border-radius: 12px; margin: 24px 0;
+      border: 1px solid #eaeaea; border-radius: 12px; margin: 0 0 24px 0;
     }
-.result-stat { font-size: 32px; font-weight: 600; margin-bottom: 4px; color: #000; }
-.result-label { color: #666; font-size: 14px; }
-.share-gate {
+   .result-stat { font-size: 32px; font-weight: 600; margin-bottom: 4px; color: #000; }
+   .result-label { color: #666; font-size: 14px; }
+   .share-gate {
       background: #fafafa; border: 1px solid #eaeaea; border-radius: 12px;
-      padding: 20px; margin: 24px 0; text-align: center;
+      padding: 20px; margin: 0 0 16px 0; text-align: center;
     }
-.share-buttons {
+   .share-buttons {
       display: flex; gap: 8px; margin-top: 16px; justify-content: center;
     }
-.share-btn {
+   .share-btn {
       padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer;
       font-size: 13px; font-weight: 500; text-decoration: none; display: inline-flex;
       align-items: center; gap: 6px;
     }
-.share-x { background: #000; color: #fff; }
-.share-fb { background: #1877F2; color: #fff; }
-.clear-btn {
-      background: #fff; color: #666; border: 1px solid #eaeaea;
-      padding: 8px 12px; font-size: 13px; width: auto; margin: 0;
-    }
-.clear-btn:hover { background: #fafafa; }
-.icon { width: 16px; height: 16px; }
-.logos {
+   .share-x { background: #000; color: #fff; }
+   .share-fb { background: #1877F2; color: #fff; }
+   .icon { width: 16px; height: 16px; }
+   .logos {
       position: absolute; bottom: 16px; right: 16px;
       display: flex; gap: 8px; align-items: center;
     }
-.logos img { width: 32px; height: 32px; border-radius: 6px; }
-.bottom-left {
+   .logos img { width: 32px; height: 32px; border-radius: 6px; }
+   .bottom-left {
       position: absolute; bottom: 16px; left: 16px;
       display: flex; gap: 8px; align-items: center;
     }
-.bmc-btn img { height: 32px; width: auto; border-radius: 6px; }
-.error { color: #E5484D; font-size: 14px; margin-top: 12px; }
-.hidden { display: none!important; }
+   .bmc-btn img { height: 32px; width: auto; border-radius: 6px; }
+   .error { color: #E5484D; font-size: 14px; margin-top: 12px; }
+   .hidden { display: none!important; }
+
+    /* NEW: 2-column layout for stage 3 */
+   .stage3-grid {
+      display: grid; grid-template-columns: 1fr 320px; gap: 24px;
+      align-items: start;
+    }
+   .stage3-left h3 { margin-bottom: 16px; color: #000; font-size: 16px; font-weight: 600; }
+   .stage3-right { position: sticky; top: 0; }
+   .action-stack { display: flex; flex-direction: column; gap: 8px; }
+   .action-stack.btn { margin: 0; }
+
+    @media (max-width: 768px) {
+     .container { padding: 20px; }
+     .stage3-grid { grid-template-columns: 1fr; }
+     .stage3-right { position: static; }
+    }
   </style>
 </head>
 <body>
@@ -140,6 +173,7 @@
             <div style="color:#000;font-weight:500">Download as ZIP</div>
             <div style="font-size:12px;color:#666">Preserves folder structure</div>
           </div>
+        </div>
         <div class="radio-item" data-mode="inline">
           <input type="radio" name="splitMode" value="inline">
           <div>
@@ -150,37 +184,48 @@
       <button class="btn" id="flattenBtn">Flatten & Optimize</button>
     </div>
 
-    <!-- Stage 3: Result + Share Gate -->
+    <!-- Stage 3: Result + Share Gate - NEW 2 COLUMN LAYOUT -->
     <div id="stage3" class="stage">
-      <div class="result">
-        <div class="result-stat" id="reductionStat">0%</div>
-        <div class="result-label">Size Reduced</div>
-      </div>
+      <div class="stage3-grid">
+        <!-- LEFT: Rename list -->
+        <div class="stage3-left">
+          <h3>Review Component Names</h3>
+          <div id="blockListFinal" class="block-list"></div>
+        </div>
 
-      <div id="shareGate" class="share-gate">
-        <div style="font-weight:600;margin-bottom:8px;color:#000">Share to unlock download</div>
-        <div style="font-size:13px;color:#666">Help others discover FramerFlatt</div>
-        <div class="share-buttons">
-          <a href="#" class="share-btn share-x" id="shareX" target="_blank">
-            <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-            Post
-          </a>
-          <a href="#" class="share-btn share-fb" id="shareFB" target="_blank">
-            <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-            Share
-          </a>
+        <!-- RIGHT: Actions -->
+        <div class="stage3-right">
+          <div class="result">
+            <div class="result-stat" id="reductionStat">0%</div>
+            <div class="result-label">Size Reduced</div>
+          </div>
+
+          <div id="shareGate" class="share-gate">
+            <div style="font-weight:600;margin-bottom:8px;color:#000">Share to unlock download</div>
+            <div style="font-size:13px;color:#666">Help others discover FramerFlatt</div>
+            <div class="share-buttons">
+              <a href="#" class="share-btn share-x" id="shareX" target="_blank">
+                <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                Post
+              </a>
+              <a href="#" class="share-btn share-fb" id="shareFB" target="_blank">
+                <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                Share
+              </a>
+            </div>
+          </div>
+
+          <div class="action-stack">
+            <button class="btn hidden" id="downloadBtn">Download Optimized File</button>
+            <button class="btn btn-secondary" id="clearBtn">Clear & Start Over</button>
+          </div>
         </div>
       </div>
-
-      <button class="btn hidden" id="downloadBtn">Download Optimized File</button>
     </div>
 
-    <div class="bottom-left">
-      <a href="https://www.buymeacoffee.com/quarantus" class="bmc-btn" id="bmcBtn" target="_blank">
-        <img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=quarantus&button_colour=ffffff&font_colour=000000&font_family=Lato&outline_colour=000000&coffee_colour=FFDD00" alt="Buy me a coffee" />
-      </a>
-      <button class="btn clear-btn" id="clearBtn">Clear</button>
-    </div>
+   <div class="bottom-left">
+  <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="quarantus" data-color="#dd5308" data-emoji="" data-font="Lato" data-text="Buy me a coffee" data-outline-color="#ffffff" data-font-color="#ffffff" data-coffee-color="#FFDD00"></script>
+</div>
 
     <div class="logos">
       <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Meta_AI_Logo_%282026%29.svg/1280px-Meta_AI_Logo_%282026%29.svg.png" alt="Meta AI">
@@ -228,7 +273,6 @@
       uploadZone.innerHTML = `<div style="font-weight:600;color:#000">${file.name}</div><div style="font-size:12px;color:#666;margin-top:4px">${(file.size/1024).toFixed(1)} KB</div>`;
     }
 
-    // 1. Processing animation + 2. Hide button on stage 2/3
     analyzeBtn.onclick = async () => {
       analyzeBtn.classList.add('hidden');
       analyzeProgress.classList.remove('hidden');
@@ -242,7 +286,7 @@
         if (!res.ok) throw new Error('Analysis failed');
         const data = await res.json();
         currentBlocks = data.blocks;
-        renderBlocks();
+        renderBlocks('blockList');
         stage1.classList.remove('active');
         stage2.classList.add('active');
       } catch (e) {
@@ -252,12 +296,12 @@
       }
     };
 
-    function renderBlocks() {
-      const list = document.getElementById('blockList');
+    function renderBlocks(targetId) {
+      const list = document.getElementById(targetId);
       list.innerHTML = currentBlocks.map((b, i) => `
         <div class="block-item">
           <div style="flex:1">
-            <input type="text" value="${b.suggestedName}" data-idx="${i}" placeholder="New name">
+            <input type="text" value="${b.suggestedName}" data-idx="${i}" placeholder="New name" ${targetId === 'blockListFinal'? 'disabled' : ''}>
             <div class="block-preview">${b.oldKey} → ${b.preview}</div>
           </div>
         </div>
@@ -277,7 +321,7 @@
       flattenBtn.textContent = 'Processing...';
 
       const renames = {};
-      document.querySelectorAll('.block-item input').forEach(inp => {
+      document.querySelectorAll('#blockList.block-item input').forEach(inp => {
         const idx = inp.dataset.idx;
         renames[currentBlocks[idx].oldKey] = inp.value;
       });
@@ -297,7 +341,9 @@
         downloadBlob = await res.blob();
 
         setupShareLinks();
+        renderBlocks('blockListFinal'); // Show final names on stage 3
         stage2.classList.remove('active');
+        document.querySelector('.container').classList.add('stage3-active');
         stage3.classList.add('active');
       } catch (e) {
         alert(e.message);
@@ -306,7 +352,6 @@
       }
     };
 
-    // 3. Share gate + BMC button unlocks download
     function setupShareLinks() {
       const url = encodeURIComponent(window.location.origin);
       const text = encodeURIComponent('Just cleaned my Framer export with FramerFlatt - removed all the wrapper divs and shrunk file size 🚀');
@@ -322,19 +367,18 @@
     }
 
     shareX.onclick = shareFB.onclick = () => setTimeout(unlockDownload, 500);
-    bmcBtn.onclick = () => setTimeout(unlockDownload, 500);
+    document.querySelector('.bottom-left').onclick = () => setTimeout(unlockDownload, 500);
 
-    // Clear button
     clearBtn.onclick = () => {
       currentFile = null;
       currentBlocks = [];
       downloadBlob = null;
       sharedUnlocked = false;
       fileInput.value = '';
+      document.querySelector('.container').classList.remove('stage3-active');
       location.reload();
     };
 
-    // 4. Download triggers refresh + memory clear
     downloadBtn.onclick = () => {
       const url = URL.createObjectURL(downloadBlob);
       const a = document.createElement('a');
@@ -348,6 +392,7 @@
         currentBlocks = [];
         downloadBlob = null;
         sharedUnlocked = false;
+        document.querySelector('.container').classList.remove('stage3-active');
         location.reload();
       }, 500);
     };
