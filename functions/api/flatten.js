@@ -1,16 +1,29 @@
 import { parseHTML } from 'linkedom';
 import * as fflate from 'fflate';
 
-export const config = { api: { bodyParser: false }, maxDuration: 10 };
+export const config = {
+  api: { bodyParser: false },
+  maxDuration: 10,
+};
 
 export default async function handler(req, res) {
-  if (req.method!== 'POST') return res.status(405).end();
+  if (req.method!== 'POST') return res.status(405).end('Method Not Allowed');
+
   const buffers = [];
   for await (const chunk of req) buffers.push(chunk);
   const body = Buffer.concat(buffers).toString('utf8');
-  const html = body.split('name="file"')[1].split('\r\n\r\n')[1].split('\r\n----')[0];
-  const renames = JSON.parse(body.split('name="renames"')[1]?.split('\r\n\r\n')[1]?.split('\r\n----')[0] || '{}');
-  const splitMode = body.split('name="splitMode"')[1]?.split('\r\n\r\n')[1]?.split('\r\n----')[0] || 'zip';
+  const boundary = body.split('\r\n')[0];
+  const parts = body.split(boundary);
+
+  const filePart = parts.find(p => p.includes('name="file"'));
+  if (!filePart) return res.status(400).send('No file');
+  const html = filePart.split('\r\n\r\n')[1].split('\r\n--')[0];
+
+  const renamesPart = parts.find(p => p.includes('name="renames"'));
+  const renames = renamesPart? JSON.parse(renamesPart.split('\r\n\r\n')[1].split('\r\n--')[0]) : {};
+
+  const splitPart = parts.find(p => p.includes('name="splitMode"'));
+  const splitMode = splitPart? splitPart.split('\r\n\r\n')[1].split('\r\n--')[0] : 'zip';
 
   const { document } = parseHTML(html);
 
