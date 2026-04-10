@@ -1,197 +1,356 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width">
-  <title>Framer Flatten | Kill the div soup</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FramerFlatt - Clean your Framer exports</title>
+  <meta property="og:title" content="FramerFlatt">
+  <meta property="og:description" content="Flatten nested Framer divs, rename components, shrink file size">
+  <meta property="og:image" content="/og-image.jpg">
   <style>
-    :root{--orange:#FF5A1F;--orange-ghost:rgba(255,90,31,.1)}
-    *{box-sizing:border-box}
-    body{
-      font-family:system-ui,-apple-system,BlinkMacSystemFont;
-      margin:0;min-height:100vh;color:#696969;
-      background: #FFFF;
-    display:flex;align-items:center;justify-content:center;padding:2rem;
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #fff; color: #000; min-height: 100vh;
+      display: flex; align-items: center; justify-content: center; padding: 20px;
     }
-  .card{
-      width:100%;max-width:720px;background:rgba(255,255,255,.92);
-      backdrop-filter:blur(12px);border-radius:16px;padding:2.5rem;
-      box-shadow:0 20px 60px rgba(0,0,0,.15)
+.container {
+      max-width: 600px; width: 100%; background: #fff;
+      border: 1px solid #eaeaea; border-radius: 12px; padding: 32px;
+      position: relative; box-shadow: 0 4px 24px rgba(0,0,0,0.04);
     }
-    h1{margin:0 0 rem;font-size:2rem;letter-spacing:-.02em}
-    p{opacity:.7;margin:0 0 2rem;line-height:1.6}
-    p1{color:#1E1E1E;}
-    input[type=file]{display:none}
-  .btn{
-      display:inline-flex;align-items:center;gap:.5rem;
-      font:inherit;font-weight:500;padding:.75rem 1.25rem;
-      border-radius:10px;cursor:pointer;transition:.15s;
-      background:transparent;border:1.5px solid var(--orange);color:var(--orange)
+    h1 { font-size: 28px; margin-bottom: 8px; color: #000; font-weight: 600; }
+.subtitle { color: #666; margin-bottom: 32px; font-size: 14px; }
+.stage { display: none; }
+.stage.active { display: block; }
+.upload-zone {
+      border: 2px dashed #FF6A00; border-radius: 12px; padding: 48px 24px;
+      text-align: center; cursor: pointer; transition: all 0.2s; background: #FFF7F2;
     }
-  .btn:hover:not(:disabled){background:var(--orange-ghost)}
-  .btn:disabled{opacity:.4;cursor:not-allowed}
-  .btn-primary{background:var(--orange);color:#fff;border-color:var(--orange)}
-  .btn-primary:hover:not(:disabled){filter:brightness(.95)}
-  .btn-row{display:flex;flex-wrap:wrap;gap:.75rem;margin:1.5rem 0}
-  .row{margin:1rem 0}
-    code{background:#f1f1f1;padding:.2rem.4rem;border-radius:4px;font-size:.9em}
-    input[type=text]{font:inherit;padding:.6rem;border-radius:8px;border:1.5px solid #ddd;width:220px}
-    input[type=text]:focus{outline:none;border-color:var(--orange)}
-    dialog::backdrop{background:rgba(0,0,0,.4)}
-    dialog{border:none;border-radius:16px;padding:0;max-width:440px;width:90%}
-    dialog[open]{animation:pop.2s ease-out}@keyframes pop{from{transform:scale(.95);opacity:0}}
-  .icon{width:18px;height:18px;stroke:currentColor;stroke-width:1.5;fill:none}
-  .spinner{width:18px;height:18px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin.6s linear infinite}
-    @keyframes spin{to{transform:rotate(360deg)}}
-  .processing{position:relative}
-  .processing::after{
-      content:'';position:absolute;inset:0;background:rgba(255,255,255,.6);
-      backdrop-filter:blur(2px);border-radius:16px;display:flex;align-items:center;justify-content:center;
+.upload-zone:hover { border-color: #FF6A00; background: #FFF0E6; }
+.upload-zone.dragging { border-color: #FF6A00; background: #FFE8D9; }
+    input[type="file"] { display: none; }
+.btn {
+      background: #FF6A00; color: #fff; border: none; padding: 12px 24px;
+      border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer;
+      width: 100%; margin-top: 16px; transition: background 0.2s;
     }
+.btn:hover { background: #E55F00; }
+.btn:disabled { background: #ccc; cursor: not-allowed; }
+.btn-secondary {
+      background: #fff; color: #666; margin-top: 8px; border: 1px solid #eaeaea;
+    }
+.btn-secondary:hover { background: #fafafa; }
+.block-list { margin: 24px 0; max-height: 300px; overflow-y: auto; }
+.block-item {
+      background: #fafafa; border: 1px solid #eaeaea; border-radius: 8px;
+      padding: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px;
+    }
+.block-item input {
+      flex: 1; background: #fff; border: 1px solid #eaeaea; color: #000;
+      padding: 8px 12px; border-radius: 6px; font-size: 14px;
+    }
+.block-item input:focus { outline: none; border-color: #FF6A00; }
+.block-preview { font-size: 12px; color: #888; margin-top: 4px; }
+.radio-group { margin: 24px 0; }
+.radio-item {
+      background: #fafafa; border: 1px solid #eaeaea; border-radius: 8px;
+      padding: 16px; margin-bottom: 8px; cursor: pointer; display: flex; align-items: center;
+    }
+.radio-item input { margin-right: 12px; accent-color: #FF6A00; }
+.radio-item.selected { border-color: #FF6A00; background: #FFF7F2; }
+.progress {
+      text-align: center; padding: 48px 0;
+    }
+.spinner {
+      width: 40px; height: 40px; border: 3px solid #eaeaea;
+      border-top-color: #FF6A00; border-radius: 50%; animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+.result {
+      text-align: center; padding: 24px; background: #fafafa;
+      border: 1px solid #eaeaea; border-radius: 12px; margin: 24px 0;
+    }
+.result-stat { font-size: 32px; font-weight: 600; margin-bottom: 4px; color: #000; }
+.result-label { color: #666; font-size: 14px; }
+.share-gate {
+      background: #fafafa; border: 1px solid #eaeaea; border-radius: 12px;
+      padding: 20px; margin: 24px 0; text-align: center;
+    }
+.share-buttons {
+      display: flex; gap: 8px; margin-top: 16px; justify-content: center;
+    }
+.share-btn {
+      padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer;
+      font-size: 13px; font-weight: 500; text-decoration: none; display: inline-flex;
+      align-items: center; gap: 6px;
+    }
+.share-x { background: #000; color: #fff; }
+.share-fb { background: #1877F2; color: #fff; }
+.clear-btn {
+      background: #fff; color: #666; border: 1px solid #eaeaea;
+      padding: 8px 12px; font-size: 13px; width: auto; margin: 0;
+    }
+.clear-btn:hover { background: #fafafa; }
+.icon { width: 16px; height: 16px; }
+.logos {
+      position: absolute; bottom: 16px; right: 16px;
+      display: flex; gap: 8px; align-items: center;
+    }
+.logos img { width: 32px; height: 32px; border-radius: 6px; }
+.bottom-left {
+      position: absolute; bottom: 16px; left: 16px;
+      display: flex; gap: 8px; align-items: center;
+    }
+.bmc-btn img { height: 32px; width: auto; border-radius: 6px; }
+.error { color: #E5484D; font-size: 14px; margin-top: 12px; }
+.hidden { display: none!important; }
   </style>
 </head>
 <body>
-  <div class="card" id="card">
-    <h1>Framer Flatten</h1>
-    <p>Drop a Framer export <p1>(save the source code from your browser and save it as html ).</p1> <br> We tear down the deep div nesting and give you clean HTML/CSS/GSAP.</p>
+  <div class="container">
+    <h1>FramerFlatt</h1>
+    <p class="subtitle">Clean your Framer exports. Remove nesting. Rename blocks. Ship faster.</p>
 
-    <label class="btn btn-primary">
-    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-
-      Choose Framer HTML
-      <input type="file" id="file" accept=".html">
-    </label>
-
-    <div id="actionStep" style="display:none">
-      <div class="btn-row">
-        <button class="btn" id="analyzeBtn" onclick="startAnalyze()">
-          <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-          <span>Analyze Blocks</span>
-        </button>
-       <button class="btn" onclick="resetFile()">
-  <svg class="icon" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-  Change File
-</button>
+    <!-- Stage 1: Upload -->
+    <div id="stage1" class="stage active">
+      <div class="upload-zone" id="uploadZone">
+        <svg class="icon" style="width:32px;height:32px;margin-bottom:12px;color:#FF6A00" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <div style="color:#000;font-weight:500">Drop your Framer HTML here</div>
+        <div style="font-size:12px;color:#666;margin-top:8px">or click to browse</div>
       </div>
+      <input type="file" id="fileInput" accept=".html">
+      <button class="btn" id="analyzeBtn" disabled>Analyze File</button>
+      <div id="analyzeProgress" class="progress hidden">
+        <div class="spinner"></div>
+        <div style="color:#000">Analyzing components...</div>
+      </div>
+      <div id="error1" class="error"></div>
     </div>
 
-    <div id="renameStep" style="display:none">
-      <h3 style="margin:2rem 0 1rem">2. Rename your blocks</h3>
-      <div id="renameList"></div>
-      <div class="row">
-        <label style="display:flex;align-items:center;gap:.5rem;margin:.5rem 0">
-          <input type="radio" name="splitMode" value="zip" checked> ZIP: HTML + CSS + GSAP
-        </label>
-        <label style="display:flex;align-items:center;gap:.5rem">
-          <input type="radio" name="splitMode" value="inline"> Single HTML file
-        </label>
-      </div>
-      <button class="btn btn-primary" id="flattenBtn" onclick="doFlatten()">
-        <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-        <span>3. Flatten + Download</span>
-      </button>
+    <!-- Stage 2: Rename -->
+    <div id="stage2" class="stage">
+      <h3 style="margin-bottom:16px;color:#000">Rename Components</h3>
+      <div id="blockList" class="block-list"></div>
+      <div class="radio-group">
+        <div class="radio-item selected" data-mode="zip">
+          <input type="radio" name="splitMode" value="zip" checked>
+          <div>
+            <div style="color:#000;font-weight:500">Download as ZIP</div>
+            <div style="font-size:12px;color:#666">Preserves folder structure</div>
+          </div>
+        <div class="radio-item" data-mode="inline">
+          <input type="radio" name="splitMode" value="inline">
+          <div>
+            <div style="color:#000;font-weight:500">Single HTML file</div>
+            <div style="font-size:12px;color:#666">Inlines all CSS/JS</div>
+          </div>
+        </div>
+      <button class="btn" id="flattenBtn">Flatten & Optimize</button>
     </div>
-    <p id="status" style="margin-top:1rem;opacity:.7"></p>
+
+    <!-- Stage 3: Result + Share Gate -->
+    <div id="stage3" class="stage">
+      <div class="result">
+        <div class="result-stat" id="reductionStat">0%</div>
+        <div class="result-label">Size Reduced</div>
+      </div>
+
+      <div id="shareGate" class="share-gate">
+        <div style="font-weight:600;margin-bottom:8px;color:#000">Share to unlock download</div>
+        <div style="font-size:13px;color:#666">Help others discover FramerFlatt</div>
+        <div class="share-buttons">
+          <a href="#" class="share-btn share-x" id="shareX" target="_blank">
+            <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+            Post
+          </a>
+          <a href="#" class="share-btn share-fb" id="shareFB" target="_blank">
+            <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+            Share
+          </a>
+        </div>
+      </div>
+
+      <button class="btn hidden" id="downloadBtn">Download Optimized File</button>
+    </div>
+
+    <div class="bottom-left">
+      <a href="https://www.buymeacoffee.com/quarantus" class="bmc-btn" id="bmcBtn" target="_blank">
+        <img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=quarantus&button_colour=ffffff&font_colour=000000&font_family=Lato&outline_colour=000000&coffee_colour=FFDD00" alt="Buy me a coffee" />
+      </a>
+      <button class="btn clear-btn" id="clearBtn">Clear</button>
+    </div>
+
+    <div class="logos">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Meta_AI_Logo_%282026%29.svg/1280px-Meta_AI_Logo_%282026%29.svg.png" alt="Meta AI">
+      <img src="/logo.png" alt="Logo">
+    </div>
   </div>
 
-  <dialog id="supportModal">
-    <div style="padding:2rem">
-      <h3 style="margin:0 0.5rem">Your file is ready!</h3>
-      <p style="opacity:.7;margin:0 0 1.5rem">Flattened <span id="savedPercent">0%</span> of code. This tool is free.</p>
-      <button onclick="downloadFile()" class="btn btn-primary" style="width:100%;justify-content:center">
-        <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-        Download anyway
-      </button>
-      <p style="font-size:.75rem;opacity:.5;margin:1rem 0 0;text-align:center">Use the Ko-fi button to support →</p>
-    </div>
-  </dialog>
+  <script>
+    let currentFile = null;
+    let currentBlocks = [];
+    let downloadBlob = null;
+    let sharedUnlocked = false;
 
-<script>
-let currentFile, pendingBlob, pendingFilename, savedRatio = '0%';
-const fileInput = document.getElementById('file');
-const analyzeBtn = document.getElementById('analyzeBtn');
-const flattenBtn = document.getElementById('flattenBtn');
-const card = document.getElementById('card');
+    const stage1 = document.getElementById('stage1');
+    const stage2 = document.getElementById('stage2');
+    const stage3 = document.getElementById('stage3');
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('fileInput');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const analyzeProgress = document.getElementById('analyzeProgress');
+    const flattenBtn = document.getElementById('flattenBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const shareGate = document.getElementById('shareGate');
+    const shareX = document.getElementById('shareX');
+    const shareFB = document.getElementById('shareFB');
+    const bmcBtn = document.getElementById('bmcBtn');
+    const clearBtn = document.getElementById('clearBtn');
 
-function setLoading(btn, loading, text) {
-  if (loading) {
-    btn.disabled = true;
-    btn.innerHTML = `<div class="spinner"></div><span>${text}</span>`;
-    card.classList.add('processing');
-  } else {
-    btn.disabled = false;
-    card.classList.remove('processing');
-  }
-}
+    uploadZone.onclick = () => fileInput.click();
+    uploadZone.ondragover = e => { e.preventDefault(); uploadZone.classList.add('dragging'); };
+    uploadZone.ondragleave = () => uploadZone.classList.remove('dragging');
+    uploadZone.ondrop = e => {
+      e.preventDefault(); uploadZone.classList.remove('dragging');
+      if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+    };
+    fileInput.onchange = e => { if (e.target.files[0]) handleFile(e.target.files[0]); };
 
-fileInput.onchange = () => {
-  currentFile = fileInput.files[0];
-  if (!currentFile) return;
-  document.getElementById('actionStep').style.display = 'block';
-  status.textContent = `Selected: ${currentFile.name}`;
-};
+    function handleFile(file) {
+      if (!file.name.endsWith('.html')) {
+        document.getElementById('error1').textContent = 'Please upload an HTML file';
+        return;
+      }
+      currentFile = file;
+      analyzeBtn.disabled = false;
+      uploadZone.innerHTML = `<div style="font-weight:600;color:#000">${file.name}</div><div style="font-size:12px;color:#666;margin-top:4px">${(file.size/1024).toFixed(1)} KB</div>`;
+    }
 
-function resetFile(){ fileInput.value=''; actionStep.style.display='none'; renameStep.style.display='none'; status.textContent=''; }
+    // 1. Processing animation + 2. Hide button on stage 2/3
+    analyzeBtn.onclick = async () => {
+      analyzeBtn.classList.add('hidden');
+      analyzeProgress.classList.remove('hidden');
+      document.getElementById('error1').textContent = '';
 
-async function startAnalyze() {
-  setLoading(analyzeBtn, true, 'Analyzing...');
-  status.textContent = 'Reading blocks from your file...';
-  try {
-    const fd = new FormData(); fd.append('file', currentFile);
-    const res = await fetch('/api/analyze', { method: 'PUT', body: fd });
-    if (!res.ok) throw new Error('Analyze failed');
-    const { blocks } = await res.json();
-    renameList.innerHTML = blocks.map(b => `
-      <div class="row" style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
-        <code>${b.oldKey}</code>
-        <svg class="icon" style="opacity:.3" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-        <input type="text" value="${b.suggestedName}" data-old="${b.oldKey}">
-        <small style="opacity:.6">${b.preview}</small>
-      </div>`).join('');
-    renameStep.style.display = 'block';
-    status.textContent = `Found ${blocks.length} blocks to rename`;
-  } catch (e) {
-    status.textContent = 'Error analyzing file. Try a different export.';
-  } finally {
-    analyzeBtn.innerHTML = `<svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span>Analyze Blocks</span>`;
-    setLoading(analyzeBtn, false);
-  }
-}
+      const formData = new FormData();
+      formData.append('file', currentFile);
 
-async function doFlatten() {
-  setLoading(flattenBtn, true, 'Flattening...');
-  status.textContent = 'Tearing down div soup...';
-  try {
-    const renames = {}; document.querySelectorAll('#renameList input').forEach(i => renames[i.dataset.old] = i.value);
-    const fd = new FormData(); fd.append('file', currentFile); fd.append('renames', JSON.stringify(renames)); fd.append('splitMode', document.querySelector('[name=splitMode]:checked').value);
-    const res = await fetch('/api/flatten', { method: 'POST', body: fd });
-    if (!res.ok) throw new Error('Flatten failed');
-    pendingBlob = await res.blob(); pendingFilename = res.headers.get('content-disposition').includes('zip')? 'site.zip' : 'index.html';
-    savedRatio = res.headers.get('X-Size-Reduction') || '80%+'; document.getElementById('savedPercent').textContent = savedRatio;
-    document.getElementById('supportModal').showModal(); status.textContent = '';
-  } catch (e) {
-    status.textContent = 'Error flattening. File may be too large.';
-  } finally {
-    flattenBtn.innerHTML = `<svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg><span>3. Flatten + Download</span>`;
-    setLoading(flattenBtn, false);
-  }
-}
+      try {
+        const res = await fetch('/api/analyze', { method: 'PUT', body: formData });
+        if (!res.ok) throw new Error('Analysis failed');
+        const data = await res.json();
+        currentBlocks = data.blocks;
+        renderBlocks();
+        stage1.classList.remove('active');
+        stage2.classList.add('active');
+      } catch (e) {
+        document.getElementById('error1').textContent = e.message;
+        analyzeBtn.classList.remove('hidden');
+        analyzeProgress.classList.add('hidden');
+      }
+    };
 
-function downloadFile() {
-  const url = URL.createObjectURL(pendingBlob);
-  Object.assign(document.createElement('a'), { href: url, download: pendingFilename }).click();
-  supportModal.close();
-}
-</script>
+    function renderBlocks() {
+      const list = document.getElementById('blockList');
+      list.innerHTML = currentBlocks.map((b, i) => `
+        <div class="block-item">
+          <div style="flex:1">
+            <input type="text" value="${b.suggestedName}" data-idx="${i}" placeholder="New name">
+            <div class="block-preview">${b.oldKey} → ${b.preview}</div>
+          </div>
+        </div>
+      `).join('');
+    }
 
-<script src='https://storage.ko-fi.com/cdn/scripts/overlay-widget.js'></script>
-<script>
-  kofiWidgetOverlay.draw('quarantus', {
-    'type': 'floating-chat',
-    'floating-chat.donateButton.text': 'Donate',
-    'floating-chat.donateButton.background-color': '#ffffff',
-    'floating-chat.donateButton.text-color': '#323842'
-  });
-</script>
+    document.querySelectorAll('.radio-item').forEach(item => {
+      item.onclick = () => {
+        document.querySelectorAll('.radio-item').forEach(i => i.classList.remove('selected'));
+        item.classList.add('selected');
+        item.querySelector('input').checked = true;
+      };
+    });
+
+    flattenBtn.onclick = async () => {
+      flattenBtn.disabled = true;
+      flattenBtn.textContent = 'Processing...';
+
+      const renames = {};
+      document.querySelectorAll('.block-item input').forEach(inp => {
+        const idx = inp.dataset.idx;
+        renames[currentBlocks[idx].oldKey] = inp.value;
+      });
+
+      const splitMode = document.querySelector('input[name="splitMode"]:checked').value;
+      const formData = new FormData();
+      formData.append('file', currentFile);
+      formData.append('renames', JSON.stringify(renames));
+      formData.append('splitMode', splitMode);
+
+      try {
+        const res = await fetch('/api/flatten', { method: 'POST', body: formData });
+        if (!res.ok) throw new Error('Flatten failed');
+
+        const reduction = res.headers.get('X-Size-Reduction') || '0%';
+        document.getElementById('reductionStat').textContent = reduction;
+        downloadBlob = await res.blob();
+
+        setupShareLinks();
+        stage2.classList.remove('active');
+        stage3.classList.add('active');
+      } catch (e) {
+        alert(e.message);
+        flattenBtn.disabled = false;
+        flattenBtn.textContent = 'Flatten & Optimize';
+      }
+    };
+
+    // 3. Share gate + BMC button unlocks download
+    function setupShareLinks() {
+      const url = encodeURIComponent(window.location.origin);
+      const text = encodeURIComponent('Just cleaned my Framer export with FramerFlatt - removed all the wrapper divs and shrunk file size 🚀');
+      shareX.href = `https://twitter.com/intent/tweet?text=${text}&url=${url}`;
+      shareFB.href = `https://www.facebook.com/sharer/sharer.php?u=${url}`;
+    }
+
+    function unlockDownload() {
+      if (sharedUnlocked) return;
+      sharedUnlocked = true;
+      shareGate.classList.add('hidden');
+      downloadBtn.classList.remove('hidden');
+    }
+
+    shareX.onclick = shareFB.onclick = () => setTimeout(unlockDownload, 500);
+    bmcBtn.onclick = () => setTimeout(unlockDownload, 500);
+
+    // Clear button
+    clearBtn.onclick = () => {
+      currentFile = null;
+      currentBlocks = [];
+      downloadBlob = null;
+      sharedUnlocked = false;
+      fileInput.value = '';
+      location.reload();
+    };
+
+    // 4. Download triggers refresh + memory clear
+    downloadBtn.onclick = () => {
+      const url = URL.createObjectURL(downloadBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = downloadBlob.type.includes('zip')? 'site.zip' : 'index.html';
+      a.click();
+      URL.revokeObjectURL(url);
+
+      setTimeout(() => {
+        currentFile = null;
+        currentBlocks = [];
+        downloadBlob = null;
+        sharedUnlocked = false;
+        location.reload();
+      }, 500);
+    };
+  </script>
 </body>
 </html>
