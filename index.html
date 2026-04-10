@@ -5,59 +5,127 @@
   <meta name="viewport" content="width=device-width">
   <title>Framer Flatten | Kill the div soup</title>
   <style>
-    body{font-family:system-ui;max-width:700px;margin:10vh auto;padding:2rem;line-height:1.6}
-    input,button{font:inherit;padding:.75rem;border-radius:8px;border:1px solid #ccc}
-    button{background:#000;color:#fff;border:none;cursor:pointer}
-   .row{margin:1rem 0}code{background:#f1f1f1;padding:.2rem.4rem;border-radius:4px}
-    dialog::backdrop{background:rgba(0,0,0,.4)}dialog{border:none;border-radius:12px;padding:0;max-width:420px;width:90%}
+    :root{--orange:#FF5A1F;--orange-ghost:rgba(255,90,31,.1)}
+    *{box-sizing:border-box}
+    body{
+      font-family:system-ui,-apple-system,BlinkMacSystemFont;
+      margin:0;min-height:100vh;color:#696969;
+      background:url('./background.jpg') center/cover no-repeat fixed;
+      display:flex;align-items:center;justify-content:center;padding:2rem;
+    }
+   .card{
+      width:100%;max-width:720px;background:rgba(255,255,255,.92);
+      backdrop-filter:blur(12px);border-radius:16px;padding:2.5rem;
+      box-shadow:0 20px 60px rgba(0,0,0,.15)
+    }
+    h1{margin:0 0 rem;font-size:2rem;letter-spacing:-.02em}
+    p{opacity:.7;margin:0 0 2rem;line-height:1.6}
+    p1{color:#1E1E1E;}
+    input[type=file]{display:none}
+   .btn{
+      display:inline-flex;align-items:center;gap:.5rem;
+      font:inherit;font-weight:500;padding:.75rem 1.25rem;
+      border-radius:10px;cursor:pointer;transition:.15s;
+      background:transparent;border:1.5px solid var(--orange);color:var(--orange)
+    }
+   .btn:hover{background:var(--orange-ghost)}
+   .btn-primary{background:var(--orange);color:#fff;border-color:var(--orange)}
+   .btn-primary:hover{filter:brightness(.95)}
+   .btn-row{display:flex;flex-wrap:wrap;gap:.75rem;margin:1.5rem 0}
+   .row{margin:1rem 0}
+    code{background:#f1f1f1;padding:.2rem.4rem;border-radius:4px;font-size:.9em}
+    input[type=text]{font:inherit;padding:.6rem;border-radius:8px;border:1.5px solid #ddd;width:220px}
+    input[type=text]:focus{outline:none;border-color:var(--orange)}
+    dialog::backdrop{background:rgba(0,0,0,.4)}
+    dialog{border:none;border-radius:16px;padding:0;max-width:440px;width:90%}
     dialog[open]{animation:pop.2s ease-out}@keyframes pop{from{transform:scale(.95);opacity:0}}
+   .icon{width:18px;height:18px;stroke:currentColor;stroke-width:1.5;fill:none}
   </style>
 </head>
 <body>
-  <h1>Framer Flatten</h1>
-  <p>Drop your Framer export. We tear down 15-level div nesting and give you clean HTML/CSS/GSAP.</p>
-  <div class="row"><input type="file" id="file" accept=".html"></div>
-  <div id="renameStep" style="display:none">
-    <h3>2. Rename your blocks</h3>
-    <div id="renameList"></div>
-    <div class="row">
-      <label><input type="radio" name="splitMode" value="zip" checked> ZIP: HTML + CSS + GSAP</label><br>
-      <label><input type="radio" name="splitMode" value="inline"> Single HTML file</label>
+  <div class="card">
+    <h1>Framer Flatten</h1>
+    <p>Drop a Framer export <p1>(save the source code from your browser and save it as html ).</p1> <br> We tear down 15-level div nesting and give you clean HTML/CSS/GSAP.</p>
+
+    <label class="btn btn-primary">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+      Choose Framer HTML
+      <input type="file" id="file" accept=".html">
+    </label>
+
+    <div id="actionStep" style="display:none">
+      <div class="btn-row">
+        <button class="btn" onclick="startAnalyze()">
+          <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          Analyze Blocks
+        </button>
+        <button class="btn" onclick="resetFile()">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          Change File
+        </button>
+      </div>
     </div>
-    <button onclick="doFlatten()">3. Flatten + Download</button>
+
+    <div id="renameStep" style="display:none">
+      <h3 style="margin:2rem 0 1rem">2. Rename your blocks</h3>
+      <div id="renameList"></div>
+      <div class="row">
+        <label style="display:flex;align-items:center;gap:.5rem;margin:.5rem 0">
+          <input type="radio" name="splitMode" value="zip" checked> ZIP: HTML + CSS + GSAP
+        </label>
+        <label style="display:flex;align-items:center;gap:.5rem">
+          <input type="radio" name="splitMode" value="inline"> Single HTML file
+        </label>
+      </div>
+      <button class="btn btn-primary" onclick="doFlatten()">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        3. Flatten + Download
+      </button>
+    </div>
+    <p id="status" style="margin-top:1rem;opacity:.7"></p>
   </div>
-  <p id="status"></p>
 
   <dialog id="supportModal">
     <div style="padding:2rem">
       <h3 style="margin:0 0.5rem">Your file is ready!</h3>
       <p style="opacity:.7;margin:0 0 1.5rem">Flattened <span id="savedPercent">0%</span> of code. This tool is free.</p>
-      <div style="display:flex;gap:.5rem;margin-bottom:1.5rem">
-        <a href="https://buymeacoffee.com/yourname" target="_blank" style="flex:1;text-align:center;padding:.75rem;background:#FFDD00;color:#000;text-decoration:none;border-radius:8px;font-weight:600">☕ Buy me a coffee</a>
-        <a href="https://github.com/sponsors/yourname" target="_blank" style="flex:1;text-align:center;padding:.75rem;background:#24292e;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">❤️ Sponsor</a>
-      </div>
-      <p style="font-size:.9rem;opacity:.7;margin:0 0.75rem">Or help others find it:</p>
-      <div style="display:flex;gap:.5rem;margin-bottom:1.5rem">
-        <button onclick="share('twitter')" style="flex:1;padding:.5rem;border:1px solid #ccc;background:#fff;border-radius:6px;cursor:pointer">Twitter</button>
-        <button onclick="share('linkedin')" style="flex:1;padding:.5rem;border:1px solid #ccc;background:#fff;border-radius:6px;cursor:pointer">LinkedIn</button>
-        <button onclick="copyLink()" style="flex:1;padding:.5rem;border:1px solid #ccc;background:#fff;border-radius:6px;cursor:pointer">Copy link</button>
-      </div>
-      <button onclick="downloadFile()" style="width:100%;padding:.75rem;background:#000;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer">Download anyway</button>
+      <button onclick="downloadFile()" class="btn btn-primary" style="width:100%;justify-content:center">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        Download anyway
+      </button>
+      <p style="font-size:.75rem;opacity:.5;margin:1rem 0 0;text-align:center">Use the Ko-fi button to support →</p>
     </div>
   </dialog>
 
 <script>
 let currentFile, pendingBlob, pendingFilename, savedRatio = '0%';
 const fileInput = document.getElementById('file');
-fileInput.onchange = async () => {
-  currentFile = fileInput.files[0]; if (!currentFile) return;
-  status.textContent = 'Analyzing...';
+
+fileInput.onchange = () => {
+  currentFile = fileInput.files[0];
+  if (!currentFile) return;
+  document.getElementById('actionStep').style.display = 'block';
+  status.textContent = `Selected: ${currentFile.name}`;
+};
+
+function resetFile(){ fileInput.value=''; actionStep.style.display='none'; renameStep.style.display='none'; status.textContent=''; }
+
+async function startAnalyze() {
+  status.textContent = 'Analyzing blocks...';
   const fd = new FormData(); fd.append('file', currentFile);
   const res = await fetch('/api/analyze', { method: 'PUT', body: fd });
   const { blocks } = await res.json();
-  renameList.innerHTML = blocks.map(b => `<div class="row"><code>${b.oldKey}</code> → <input value="${b.suggestedName}" data-old="${b.oldKey}" style="width:200px"><small style="opacity:.6">${b.preview}</small></div>`).join('');
-  renameStep.style.display = 'block'; status.textContent = '';
-};
+  renameList.innerHTML = blocks.map(b => `
+    <div class="row" style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+      <code>${b.oldKey}</code>
+      <svg class="icon" style="opacity:.3" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      <input type="text" value="${b.suggestedName}" data-old="${b.oldKey}">
+      <small style="opacity:.6">${b.preview}</small>
+    </div>`).join('');
+  renameStep.style.display = 'block';
+  status.textContent = '';
+}
+
 async function doFlatten() {
   const renames = {}; document.querySelectorAll('#renameList input').forEach(i => renames[i.dataset.old] = i.value);
   const fd = new FormData(); fd.append('file', currentFile); fd.append('renames', JSON.stringify(renames)); fd.append('splitMode', document.querySelector('[name=splitMode]:checked').value);
@@ -67,9 +135,23 @@ async function doFlatten() {
   savedRatio = res.headers.get('X-Size-Reduction') || '80%+'; document.getElementById('savedPercent').textContent = savedRatio;
   document.getElementById('supportModal').showModal(); status.textContent = '';
 }
-function downloadFile() { const url = URL.createObjectURL(pendingBlob); Object.assign(document.createElement('a'), { href: url, download: pendingFilename }).click(); supportModal.close(); }
-function share(p) { const t = `I just flattened 15 levels of Framer divs into clean HTML with this free tool. Saved ${savedRatio}!`; const u = location.origin; const l = { twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(t)}&url=${encodeURIComponent(u)}`, linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(u)}` }; window.open(l[p], '_blank', 'width=600,height=400'); }
-function copyLink() { navigator.clipboard.writeText(location.origin); event.target.textContent = 'Copied!'; setTimeout(() => event.target.textContent = 'Copy link', 1500); }
+
+function downloadFile() {
+  const url = URL.createObjectURL(pendingBlob);
+  Object.assign(document.createElement('a'), { href: url, download: pendingFilename }).click();
+  supportModal.close();
+}
+</script>
+
+<!-- Your Ko-fi donation widget -->
+<script src='https://storage.ko-fi.com/cdn/scripts/overlay-widget.js'></script>
+<script>
+  kofiWidgetOverlay.draw('quarantus', {
+    'type': 'floating-chat',
+    'floating-chat.donateButton.text': 'Donate',
+    'floating-chat.donateButton.background-color': '#ffffff',
+    'floating-chat.donateButton.text-color': '#323842'
+  });
 </script>
 </body>
 </html>
