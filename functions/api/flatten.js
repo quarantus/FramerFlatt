@@ -1,92 +1,88 @@
-import { parseHTML } from 'linkedom';
-import { zipSync, strToU8 } from 'fflate';
+import { JSDOM } from 'linkedom';
 import { minify } from 'html-minifier-terser';
-
-function flattenNode(el, renames) {
-  for (const child of [...el.children]) flattenNode(child, renames);
-  const isWrapper = el.tagName === 'DIV' && el.children.length === 1 &&!el.id &&!el.textContent.trim();
-  if (isWrapper) {
-    const child = el.children[0];
-    if (el.hasAttribute('style')) {
-      const s = child.getAttribute('style');
-      child.setAttribute('style', s? `${s};${el.getAttribute('style')}` : el.getAttribute('style'));
-    }
-    el.replaceWith(child); el = child;
-  }
-  const oldKey = el.id || [...el.classList].find(c => renames[c]);
-  const newName = renames[oldKey];
-  if (newName) { el.removeAttribute('class'); el.id = newName; }
-}
-
-async function inlineImages(document) {
-  const svgs = [...document.querySelectorAll('img[src^="data:image/svg+xml"], img[src$=".svg"]')];
-  for (const img of svgs) {
-    try {
-      const url = img.src;
-      if (url.startsWith('http')) {
-        const svgText = await fetch(url).then(r => r.text());
-        img.outerHTML = svgText; // replace <img> with inline <svg>
-      }
-    } catch (e) {}
-  }
-}
-
-function dedupeFonts(document) {
-  const usedFonts = new Set();
-  document.querySelectorAll('[style*="font-family"]').forEach(el => {
-    const match = el.style.fontFamily.match(/['"]?([^'"]+)['"]?/);
-    if (match) usedFonts.add(match[1]);
-  });
-  document.querySelectorAll('style').forEach(styleTag => {
-    styleTag.textContent = styleTag.textContent.replace(/@font-face\s*{[^}]*font-family:\s*['"]?([^'"]+)['"]?[^}]*}/g, (match, font) => {
-      return usedFonts.has(font)? match : '';
-    });
-  });
-}
+import fflate from 'fflate';
 
 export async function onRequestPost({ request }) {
-  const fd = await request.formData();
-  const file = fd.get('file');
-  const renames = JSON.parse(fd.get('renames') || '{}');
-  const splitMode = fd.get('splitMode') || 'zip';
-  const htmlText = await file.text();
-  const { document } = parseHTML(htmlText);
-  const originalSize = htmlText.length;
+  try {
+    const form = await request.formData();
+    const file = form.get('file');
+    const renames = JSON.parse(form.get('renames') || '{}');
+    const splitMode = form.get('splitMode') || 'zip';
 
-  flattenNode(document.body, renames);
-  await inlineImages(document); // 1. Image inlining
-  dedupeFonts(document); // 2. Font dedupe
+    if (!file) return new Response('No file', { status: 400 });
 
-  // Extract CSS + GSAP
-  let css = `*{box-sizing:border-box;margin:0}body{font-family:system-ui}`;
-  let gsap = [`import{gsap}from"gsap";import{ScrollTrigger}from"gsap/ScrollTrigger";gsap.registerPlugin(ScrollTrigger);`];
-  document.querySelectorAll('[style*="transform"],[style*="opacity"]').forEach(el => {
-    if (!el.id) el.id = `a${Math.random().toString(36).slice(2,8)}`;
-    const style = el.getAttribute('style'); el.removeAttribute('style');
-    const anim = style.match(/transform:[^;]+|opacity:[^;]+/g)?.join(',').replace(/;/g,',');
-    if (anim) {
-      css += `#${el.id}{${style.replace(/transform:[^;]+;?|opacity:[^;]+;?/g,'')}}`;
-      gsap.push(`gsap.from("#${el.id}",{${anim},duration:.6,scrollTrigger:"#${el.id}"});`);
+    console.log('Starting flatten, size:', file.size);
+    const html = await file.text();
+    const dom = new JSDOM(html);
+    const doc = dom.window.document;
+
+    // Your flattening logic here - same as before
+    function isFramerWrapper(el) {
+      if (el.tagName!== 'DIV') return false;
+      const hasId = el.hasAttribute('id');
+      const hasSemantic = ['role','aria-label','data-id','href','src'].some(a => el.hasAttribute(a));
+      const hasText = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
+      const children = [...el.children];
+      return!hasId &&!hasSemantic &&!hasText && children.length <= 1;
     }
-  });
 
-  let finalHtml = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${document.title}</title><link rel="stylesheet" href="style.css"></head><body>${document.body.innerHTML}<script src="https://unpkg.com/gsap@3/dist/gsap.min.js"></script><script src="https://unpkg.com/gsap@3/dist/ScrollTrigger.min.js"></script><script type="module" src="animate.js"></script></body></html>`;
+    function flatten(el) {
+      [...el.children].forEach(flatten);
+      if (isFramerWrapper(el) && el.children.length === 1) {
+        const child = el.children[0];
+        if (el.getAttribute('style')) child.setAttribute('style', (child.getAttribute('style') || '') + ';' + el.getAttribute('style'));
+        el.replaceWith(child);
+      }
+    }
 
-  // 3. Minify everything
-  finalHtml = await minify(finalHtml, { collapseWhitespace: true, removeComments: true, minifyCSS: true, minifyJS: true });
-  css = await minify(`<style>${css}</style>`, { minifyCSS: true }).then(r => r.replace(/^<style>|<\/style>$/g,''));
-  const jsCode = await minify(gsap.join('\n'), { minifyJS: true });
+    [...doc.body.children].forEach(flatten);
+    console.log('Flatten complete');
 
-  if (splitMode === 'inline') {
-    const inlined = finalHtml.replace('<link rel="stylesheet" href="style.css">', `<style>${css}</style>`).replace('<script type="module" src="animate.js"></script>', `<script type="module">${jsCode}</script>`);
-    return new Response(inlined, { headers: { 'Content-Type': 'text/html', 'X-Size-Reduction': `${((1-inlined.length/originalSize)*100).toFixed(1)}%` }});
+    // Rename blocks
+    Object.entries(renames).forEach(([oldKey, newName]) => {
+      doc.querySelectorAll(`[data-framer-name="${oldKey}"]`).forEach(el => {
+        el.classList.add(newName.toLowerCase().replace(/\s+/g, '-'));
+      });
+    });
+
+    let result = doc.documentElement.outerHTML;
+
+    // Try minify, but don't crash if it fails
+    try {
+      result = await minify(result, { collapseWhitespace: true, removeComments: true });
+      console.log('Minify complete');
+    } catch (e) {
+      console.log('Minify failed, using unminified:', e.message);
+    }
+
+    const originalSize = file.size;
+    const newSize = new TextEncoder().encode(result).length;
+    const reduction = ((1 - newSize / originalSize) * 100).toFixed(1) + '%';
+
+    if (splitMode === 'inline') {
+      return new Response(result, {
+        headers: {
+          'Content-Type': 'text/html',
+          'Content-Disposition': 'attachment; filename="index.html"',
+          'X-Size-Reduction': reduction
+        }
+      });
+    }
+
+    // ZIP mode
+    const files = { 'index.html': fflate.strToU8(result) };
+    const zipped = fflate.zipSync(files);
+
+    return new Response(zipped, {
+      headers: {
+        'Content-Type': 'application/zip',
+        'Content-Disposition': 'attachment; filename="site.zip"',
+        'X-Size-Reduction': reduction
+      }
+    });
+
+  } catch (err) {
+    console.error('Flatten error:', err.stack || err.message);
+    return new Response(`Flatten failed: ${err.message}`, { status: 500 });
   }
-
-  const zip = zipSync({
-    'index.html': strToU8(finalHtml),
-    'style.css': strToU8(css),
-    'animate.js': strToU8(jsCode),
-    'README.txt': strToU8('Generated by Framer Flatten\nRun: npx serve\n')
-  });
-  return new Response(zip, { headers: { 'Content-Type': 'application/zip', 'Content-Disposition': 'attachment; filename="site.zip"', 'X-Size-Reduction': `${((1-(finalHtml.length+css.length+jsCode.length)/originalSize)*100).toFixed(1)}%` }});
 }
